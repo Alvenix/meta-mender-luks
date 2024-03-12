@@ -48,6 +48,8 @@ DATA_HEADER=@@MENDER/LUKS__DATA__PART___HEADER@@
 
 LUKS_KEY="$MNT_DIR/@@MENDER/LUKS_KEY_FILE@@"
 
+IS_FIRST_BOOT=false
+
 ################################################################################
 debug_shell() {
   log "exitting to debug shell"
@@ -109,6 +111,7 @@ mender_luks_encrypt_part() {
 
   # Assume if type is recognized, this means encryption was not yet started
   if blkid $DEV | grep "TYPE=" 2>&1 >/dev/null; then
+    IS_FIRST_BOOT=true
     log "Initializing encryption on $DEV"
 
     echo -n "@@MENDER/LUKS_PASSWORD@@" | cryptsetup @@MENDER/LUKS_CRYPTSETUP_OPTS_SPECS@@  \
@@ -186,6 +189,11 @@ mender_luks_encrypt_part $ROOT_A_DEV \
 mender_luks_encrypt_part $ROOT_B_DEV \
 		   "@@MENDER/LUKS_ROOTFS_PART_B_DM_NAME@@"       \
 		   "$(find $BOOT_MNT -name @@MENDER/LUKS_ROOTFS_PART_B_HEADER_NAME@@)"
+
+if $IS_FIRST_BOOT; then
+    # This is the first boot so clear the tpm just in case
+    mender-luks-tpm2-util.sh --clear
+fi
 
 read_args && map_root_dev && unlock_luks_partitions
 
